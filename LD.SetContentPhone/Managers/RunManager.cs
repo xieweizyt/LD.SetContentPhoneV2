@@ -27,6 +27,7 @@ namespace LD.SetContentPhone.Managers
         public bool IsRunning { get; private set; } = false;
         public int ConsumedCount => _consumedCount;
         private int _consumedCount = 0;
+        private int _sendPhoneIndex = 0;
 
         /// <summary>
         /// 设置执行对象
@@ -41,6 +42,7 @@ namespace LD.SetContentPhone.Managers
         {
             _dataQueue.Clear();
             _consumedCount = 0;
+            _sendPhoneIndex = 0;
             AddDataQueue(lists);
         }
 
@@ -166,23 +168,30 @@ namespace LD.SetContentPhone.Managers
 
                         _pauseEvent.Wait(token);
 
-                        var managers = _dic.Values.ToList();
+                        var managers = GetCarrierManagers();
 
                         if (managers.Count == 0)
                         {
-                            ShowMsg?.Invoke("没有检测到串口。");
+                            ShowMsg?.Invoke("没有检测到有运营商的串口。");
+                            LoggerManager.WriteLog($"中心号:{centerPhone} 没有检测到有运营商的串口，任务停止");
                             _dataQueue.Enqueue(centerPhone);
                             Stop();
                             return;
                         }
 
-                        foreach (AbstractSendManager manager in managers)
-                        {
-                            _pauseEvent.Wait(token);
-                            token.ThrowIfCancellationRequested();
+                        LoggerManager.WriteLog($"中心号:{centerPhone} 开始并行处理 串口数量:{managers.Count}");
 
-                            await SetCenterAndSendAsync(manager, centerPhone, token);
-                        }
+                        var tasks = managers.Select(manager =>
+                            Task.Run(async () =>
+                            {
+                                _pauseEvent.Wait(token);
+                                token.ThrowIfCancellationRequested();
+
+                                await SetCenterAndSendAsync(manager, centerPhone, token);
+                            }, token));
+
+                        await Task.WhenAll(tasks);
+                        LoggerManager.WriteLog($"中心号:{centerPhone} 并行处理完成");
                     }
                 }
                 catch (OperationCanceledException) { }
@@ -196,6 +205,24 @@ namespace LD.SetContentPhone.Managers
                     }
                 }
             }, token);
+        }
+
+        private List<AbstractSendManager> GetCarrierManagers()
+        {
+            return _dic.Values
+                .Where(manager => HasCarrier(manager.Carrier))
+                .ToList();
+        }
+
+        private bool HasCarrier(string carrier)
+        {
+            if (string.IsNullOrWhiteSpace(carrier))
+            {
+                return false;
+            }
+
+            string value = carrier.Trim();
+            return value != "无" && value != "未知" && value != "-";
         }
 
         private async Task SetCenterAndSendAsync(AbstractSendManager manager, string centerPhone, CancellationToken token)
@@ -264,8 +291,8 @@ namespace LD.SetContentPhone.Managers
                 return SmsConfig.SendPhones[0];
             }
 
-            Random random = new Random();
-            int index = random.Next(SmsConfig.SendPhones.Count);
+            int next = Interlocked.Increment(ref _sendPhoneIndex);
+            int index = (int)((uint)next % (uint)SmsConfig.SendPhones.Count);
             return SmsConfig.SendPhones[index];
         }
     }
