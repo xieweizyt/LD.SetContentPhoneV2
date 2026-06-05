@@ -247,7 +247,6 @@ namespace LD.SetContentPhone.Managers
             catch (Exception ex)
             {
                 LoggerManager.WriteError($"COM:{manager.ComName} 手机号:{phone} 设置中心号:{centerPhone} 异常", ex);
-                manager.RecordSendFail(phone);
                 return;
             }
 
@@ -275,7 +274,7 @@ namespace LD.SetContentPhone.Managers
             }
             else
             {
-                manager.RecordSendFail(phone);
+                LoggerManager.WriteLog($"COM:{manager.ComName} 手机号:{phone} 设置中心号:{centerPhone} 失败，跳过发送短信");
             }
         }
 

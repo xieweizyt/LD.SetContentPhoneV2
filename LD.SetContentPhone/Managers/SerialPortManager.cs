@@ -57,7 +57,6 @@ namespace LD.SetContentPhone.Managers
         {
             if (!VerifyConn())
             {
-                RecordSendFail(phone);
                 return "ERROR";
             }
 
