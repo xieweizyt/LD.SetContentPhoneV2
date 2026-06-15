@@ -11,6 +11,7 @@ namespace LD.SetContentPhone.Managers
     public static class LoggerManager
     {
         private static readonly ILog Log = LogManager.GetLogger(typeof(LoggerManager));
+        private static readonly object SuccessLogLock = new object();
 
         public static void Init()
         {
@@ -57,6 +58,22 @@ namespace LD.SetContentPhone.Managers
         public static void WriteError(string message, Exception ex)
         {
             Log.Error(message, ex);
+        }
+
+        public static void WriteSuccess(string centerPhone, string carrier, string comName)
+        {
+            string logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+            if (!Directory.Exists(logDir))
+            {
+                Directory.CreateDirectory(logDir);
+            }
+
+            string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}\t{centerPhone}\t{carrier}\t{comName}";
+
+            lock (SuccessLogLock)
+            {
+                File.AppendAllText(Path.Combine(logDir, "success.txt"), line + Environment.NewLine, System.Text.Encoding.UTF8);
+            }
         }
     }
 }

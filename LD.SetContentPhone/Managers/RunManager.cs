@@ -259,6 +259,10 @@ namespace LD.SetContentPhone.Managers
                     LoggerManager.WriteLog($"COM:{manager.ComName} 手机号:{phone} 发送短信内容:{content}");
                     string sendResult = await manager.SendSmsByPhoneAsync(phone, content, token);
                     LoggerManager.WriteLog($"COM:{manager.ComName} 手机号:{phone} 发送短信内容:{content} 结果:{sendResult}");
+                    if (sendResult == "OK")
+                    {
+                        LoggerManager.WriteSuccess(centerPhone, manager.Carrier, manager.ComName);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
